@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงชื่อเข้าใช้เพื่อเข้าสู่บทเรียน</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Google Font: Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex flex-col justify-between">
+
+    <!-- 1. ส่วนหัว (Header) -->
+    <header class="w-full bg-white shadow-md py-6 px-4 text-center">
+        <h1 class="text-2xl md:text-3xl font-bold text-indigo-700">ลงชื่อเข้าใช้เพื่อเข้าสู่บทเรียน</h1>
+        <p class="text-gray-500 text-sm mt-1">ระบบลงทะเบียนและเข้าสู่บทเรียนออนไลน์</p>
+    </header>
+
+    <!-- 2. ปุ่มกดสองปุ่มกลางหน้าจอ -->
+    <main class="flex-grow flex items-center justify-center px-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center space-y-6">
+            <div class="space-y-2">
+                <h2 class="text-xl font-semibold text-gray-800">ยินดีต้อนรับ</h2>
+                <p class="text-sm text-gray-500">กรุณาเลือกทำรายการที่คุณต้องการ</p>
+            </div>
+            
+            <div class="flex flex-col space-y-4">
+                <button onclick="openLoginModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg transition duration-200 transform hover:-translate-y-0.5">
+                    ลงชื่อเข้าใช้
+                </button>
+                <button onclick="openRegisterModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg transition duration-200 transform hover:-translate-y-0.5">
+                    ลงทะเบียนเข้าสู่ระบบ
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-gray-400">
+        &copy; 2026 ระบบบทเรียนออนไลน์. All rights reserved.
+    </footer>
+
+    <!-- JavaScript สำหรับจัดการ Popup และ JSONP -->
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFUNjDQpg-nAiM8zluVF_p04qoZsWO7JlQ0gHVSxB34hfyWOjgkdWriyT2ntAgH7OoJg/exec";
+
+        // ฟังก์ชันช่วยทำ JSONP Request เพื่อแก้ปัญหา Cross-Origin (CORS)
+        function jsonp(url, callbackName) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                window[callbackName] = (data) => {
+                    document.body.removeChild(script);
+                    delete window[callbackName];
+                    resolve(data);
+                };
+                script.src = `${url}&callback=${callbackName}`;
+                script.onerror = () => {
+                    document.body.removeChild(script);
+                    delete window[callbackName];
+                    reject(new Error('Network error or Apps Script error'));
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        // 3. หน้า Popup “ลงชื่อเข้าใช้”
+        function openLoginModal() {
+            Swal.fire({
+                title: 'ลงชื่อเข้าใช้',
+                html: `
+                    <input type="text" id="login-username" class="swal2-input" placeholder="ชื่อผู้ใช้">
+                    <input type="password" id="login-password" class="swal2-input" placeholder="รหัสผ่าน">
+                `,
+                confirmButtonText: 'Login',
+                confirmButtonColor: '#4f46e5',
+                focusConfirm: false,
+                showCancelButton: true,
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: () => {
+                    const username = document.getElementById('login-username').value.trim();
+                    const password = document.getElementById('login-password').value.trim();
+                    if (!username || !password) {
+                        Swal.showValidationMessage('กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน');
+                        return false;
+                    }
+                    return { username, password };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'กำลังตรวจสอบ...',
+                        text: 'โปรดรอสักครู่',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        const cbName = 'jsonp_login_' + Math.random().toString(36).substring(2);
+                        const url = `${SCRIPT_URL}?action=login&username=${encodeURIComponent(result.value.username)}&password=${encodeURIComponent(result.value.password)}`;
+                        const res = await jsonp(url, cbName);
+
+                        if (res.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'เข้าสู่ระบบสำเร็จ',
+                                text: 'กำลังพาคุณไปยังบทเรียน...',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = 'https://www.viverse.com/FP2Px84';
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'เกิดข้อผิดพลาด',
+                                text: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+                                confirmButtonColor: '#4f46e5'
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เชื่อมต่อระบบผิดพลาด',
+                            text: 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้',
+                            confirmButtonColor: '#4f46e5'
+                        });
+                    }
+                }
+            });
+        }
+
+        // 4. หน้า Popup “ลงทะเบียนเข้าสู่ระบบ”
+        function openRegisterModal() {
+            Swal.fire({
+                title: 'ลงทะเบียนเข้าสู่ระบบ',
+                html: `
+                    <input type="text" id="reg-username" class="swal2-input" placeholder="ชื่อผู้ใช้">
+                    <input type="password" id="reg-password" class="swal2-input" placeholder="ตั้งรหัสผ่าน">
+                `,
+                confirmButtonText: 'ลงทะเบียน',
+                confirmButtonColor: '#059669',
+                focusConfirm: false,
+                showCancelButton: true,
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: () => {
+                    const username = document.getElementById('reg-username').value.trim();
+                    const password = document.getElementById('reg-password').value.trim();
+                    if (!username || !password) {
+                        Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบถ้วน');
+                        return false;
+                    }
+                    return { username, password };
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'กำลังบันทึกข้อมูล...',
+                        text: 'โปรดรอสักครู่',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    try {
+                        const cbName = 'jsonp_reg_' + Math.random().toString(36).substring(2);
+                        const url = `${SCRIPT_URL}?action=register&username=${encodeURIComponent(result.value.username)}&password=${encodeURIComponent(result.value.password)}`;
+                        const res = await jsonp(url, cbName);
+
+                        if (res.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'บันทึกสำเร็จ',
+                                text: 'ลงทะเบียนสำเร็จ กรุณาลงชื่อเข้าใช้',
+                                confirmButtonColor: '#059669'
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'ไม่สามารถลงทะเบียนได้',
+                                text: res.message || 'ชื่อผู้ใช้นี้อาจถูกใช้งานแล้ว',
+                                confirmButtonColor: '#059669'
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เชื่อมต่อระบบผิดพลาด',
+                            text: 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้',
+                            confirmButtonColor: '#059669'
+                        });
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
